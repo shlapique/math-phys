@@ -15,18 +15,18 @@ function psi(x)
 end
 
 # u(0, t)
-function phi0(t)
-    return exp(-0.5 * t)
+function phi0(t, a)
+    return exp(-a * t)
 end
 
 # u(pi, t)
-function phi1(t)
-    return exp(-0.5 * t)
+function phi1(t, a)
+    return exp(-a * t)
 end
 
 # U(x, t) = exp(-0,5t)sin(x)
-function sol(x, t)
-    return exp(-0.5 * t) * sin(x)
+function sol(x, t, a)
+    return exp(-a * t) * sin(x)
 end
 end
 
@@ -65,24 +65,13 @@ end
 
 # ╔═╡ b66496dc-5157-4b60-acc8-45274315c2d9
 begin
-A = [-10 9 0 0 0
-    -5 -21 -8 0 0
-    0 7 12 2 0
-    0 0 0 8 2
-    0 0 0 2 10]
-A = [-10 9 0 0 0
-    -5 -21 -8 0 0
-    0 7 12 2 0
-    0 0 0 8 2
-    0 0 0 2 10]
-show(A)
-b = [7 29 31 56 -24]
-println(b)
-test = run_through(A, b)
-println("test\n", test)
+N = 50
+K = 7000
+T = 3
+τ = T / K
 end
 
-# ╔═╡ 7e8e43fc-5158-4bd9-a312-754e764317ba
+# ╔═╡ 18df8db0-980f-4bc9-863a-a5650bb6cd57
 
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -1076,6 +1065,6 @@ version = "1.4.1+1"
 # ╠═74759fe9-3c81-4ba6-ab34-0d247f4a8d17
 # ╠═549cbb96-140a-411d-9821-7785aedf0d1a
 # ╠═b66496dc-5157-4b60-acc8-45274315c2d9
-# ╠═7e8e43fc-5158-4bd9-a312-754e764317ba
+# ╠═18df8db0-980f-4bc9-863a-a5650bb6cd57
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
