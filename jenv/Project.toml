@@ -1,3 +1,4 @@
 [deps]
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 Unzip = "41fe7b60-77ed-43a1-b4f0-825fd5a5650d"
