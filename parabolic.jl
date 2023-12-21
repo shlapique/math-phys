@@ -1,3 +1,4 @@
+# using PlotlyJS
 using Plots
 using Unzip
 
@@ -17,37 +18,33 @@ function ϕ1(t)
 end
 
 # U(x, t) = exp(-0,5t)sin(x)
-function sol(x, t)
-    return exp(-0.5 * t) * sin.(x)
+# function sol(x, t)
+#     return exp(-0.5 * t) * sin.(x)
+# end
+function sol(data)
+    return exp(-0.5 * data[2]) * sin(data[1])
 end
 
 function f(x, t)
     return 0.5 * exp(-0.5 * t) * sin(x)
 end
 
-
-function run_through(A, b)
-    n = size(A)[1]
-    # print(n)
-    x = zeros(n)
-    P = zeros(n)
-    Q = zeros(n)
-    P[1] = -A[1, 2] / A[1, 1]
-    Q[1] = b[1] / A[1, 1]
-    for i = 2:n
-        if i == n
-            P[i] = 0
-        else
-            # println("i=", i)
-            P[i] = -A[i, i + 1] / (A[i, i] + A[i, i - 1] * P[i - 1])
-        end
-        Q[i] = (b[i] - A[i, i - 1] * Q[i - 1]) / (A[i, i] + A[i, i - 1] * P[i - 1])
+function tma(a, b, c, d)
+    n = length(a)
+    x = copy(d)
+    c_prime = copy(c)
+    c_prime[1] /= b[1]
+    x[1] /= b[1]
+    for i in 2:n
+        scale = 1.0 / (b[i] - c_prime[i-1]*a[i])
+        c_prime[i] *= scale
+        x[i] = (x[i] - a[i] * x[i-1]) * scale
     end
-    x[n] = Q[n]
-
-    for i = n-1:-1:1
-        x[i] = P[i] * x[i + 1] + Q[i]
+    # Back
+    for i in n-1:-1:1
+        x[i] -= (c_prime[i] * x[i+1])
     end
+
     return x
 end
 
@@ -69,37 +66,72 @@ function explicit(x, t, h, τ)
     return U
 end
 
-function implicit(x, t, h, τ, θ)
+function implicit_crank(x, t, h, τ, θ)
+    if θ == 1
+        println("Running implicit scheme...")
+    else
+        println("Running Crank–Nicolson method...")
+    end
     U = zeros(length(x), length(t))
     σ = τ / h^2
+    N = length(x)
+    K = length(t)
+
     # inital cond
-    for i in 1:length(x)
+    for i in 1:N
         U[i, 1] = ψ(x[i])
     end
-	for i in 2:length(t)
-			A = zeros(length(x)-2, length(x)-2)
-            n = size(A)[1]
-			A[1, 1] = -(1 + 2*σ)
-			A[1, 2] = σ
-            # for j in 2:length(A)-1
-            for j in 2:n-1
-                A[j, j-1] = σ
-                A[j, j] = -(1 + 2*σ)
-                A[j, j+1] = σ
-            end
-            A[end, end-1] = σ
-            A[end, end] = -(1 + 2*σ)
+	for j in 2:K
+        # println("ITER:", j)
+        # display(U)
+        a = zeros(N)
+        b = zeros(N)
+        c = zeros(N)
+        d = zeros(N)
+        
+        # 2p approximation with 1st order
+        b[1] = -1
+        c[1] = 1
+        d[1] = ϕ0(t[j])*h
+        a[end] = -1
+        b[end] = 1
+        d[end] = ϕ1(t[j])*h
+        # 3p approximation with 2nd order
+        # b[1] = 2/h + h/τ
+        # c[1] = -2/h
+        # d[1] = h*U[1, j-1]/τ - ϕ0(t[j])*2
+        # a[end] = -2/h
+        # b[end] = 2/h + h/τ
+        # d[end] = h*U[end, j-1] / τ+ϕ1(t[j])*2
 
-            b = -U[2:end-1, i-1]
-
-			b[1] -= σ * ϕ0(t[i])
-            b[end] -= σ * ϕ1(t[i])
-
-			U[1, i] = ϕ0(t[i])
-            U[end, i] = ϕ1(t[i])
-            U[2:end-1, i] = run_through(A, b)
+        for i in 2:N-1
+            a[i] = θ*τ
+            b[i] = -2*θ*τ - h^2
+            c[i] = θ*τ
+            d[i] = (
+                    (θ-1)*τ*U[i-1, j-1] 
+                    + (-h^2+2*τ-θ*τ*2)*U[i, j-1] 
+                    + (θ-1)*τ*U[i+1, j-1] 
+                    - θ*τ*h^2*f(x[i], t[j]) 
+                    + (θ-1)*τ*h^2*f(x[i], t[j-1])
+                   )
+        end
+        res = tma(a, b, c, d)
+        U[:, j] = res 
 	end
 	return U
+end
+
+function get_errors(U, U2, U3, N, K)
+    err_explicit = 0
+    err_implicit_crank = 0
+    for i in 1:N
+        for j in 1:K
+            err_explicit += (U[i, j] - U2[i, j])^2
+            err_implicit_crank += (U[i, j] - U3[i, j])^2
+        end
+    end
+    return err_explicit/((N+1)*(K+1)), err_implicit_crank/((N+1)*(K+1))
 end
 
 T = 3
@@ -132,33 +164,21 @@ println(t)
 # t_cur = parse(Float64, t_cur)
 
 t_cur = K*τ
-U = sol(x, t_cur)
-display(U)
+mesh = collect(Iterators.product(x, t))
+U = sol.(mesh)
+plt = Plots.plot!(x, U[:, K])
 
 if a * τ / h^2 <= 0.5
     println("Условие Куррента выполнено:", a * τ / h^2, "<= 0.5\n")
     U2 = explicit(x, t, h, τ)
-    U3 = implicit(x, t, h, τ, 1)
-    plot(x, U2[:, K])
-    plot!(x, U3[:, K])
+    U3 = implicit_crank(x, t, h, τ, 1)
+
+    srf2 = Plots.surface(x, t, U2')
+    plt2 = Plots.plot(x, U2[:, K])
+    plt3 = Plots.plot!(x, U3[:, K])
 end
+srf = PlotlyJS.plot(PlotlyJS.surface(x=x, y=t, z=U))
 
-plot!(x, U)
-
-
-
-# mesh = collect(Iterators.product(x, t))
-# display(mesh)
-
-# t1, t2 = unzip(mesh)
-# t1 = t1[:,1]
-# t2 = t2[1,:]
-# display(t1)
-# display(t2)
-# plot(t1, t2)
-
-# y = sol.(mesh)
-# display(uz)
-# typeof(uz)
-# display(y)
-# plot(x, y)
+# get errors:
+er1, er2 = get_errors(U, U2, U3, N, K)
+println(er1, er2)
