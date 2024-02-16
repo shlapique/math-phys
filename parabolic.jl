@@ -1,4 +1,4 @@
-# using PlotlyJS
+using PlotlyJS
 using Plots
 using Unzip
 
@@ -17,10 +17,7 @@ function ϕ1(t)
     return -exp(-0.5 * t)
 end
 
-# U(x, t) = exp(-0,5t)sin(x)
-# function sol(x, t)
-#     return exp(-0.5 * t) * sin.(x)
-# end
+
 function sol(data)
     return exp(-0.5 * data[2]) * sin(data[1])
 end
@@ -96,13 +93,6 @@ function implicit_crank(x, t, h, τ, θ)
         a[end] = -1
         b[end] = 1
         d[end] = ϕ1(t[j])*h
-        # 3p approximation with 2nd order
-        # b[1] = 2/h + h/τ
-        # c[1] = -2/h
-        # d[1] = h*U[1, j-1]/τ - ϕ0(t[j])*2
-        # a[end] = -2/h
-        # b[end] = 2/h + h/τ
-        # d[end] = h*U[end, j-1] / τ+ϕ1(t[j])*2
 
         for i in 2:N-1
             a[i] = θ*τ
@@ -134,14 +124,19 @@ function get_errors(U, U2, U3, N, K)
     return err_explicit/((N+1)*(K+1)), err_implicit_crank/((N+1)*(K+1))
 end
 
-T = 3
+function max_abs_error(A, B)
+    return maximum(abs.(A - B))
+end
+
+T = 4
 l = pi
 
 a = 1
 
-
 N = 50   # segments for x
 K = 5000 # segments for t
+
+θ = 1
 
 τ = T / K       # t step
 println("τ=", τ)
@@ -166,19 +161,32 @@ println(t)
 t_cur = K*τ
 mesh = collect(Iterators.product(x, t))
 U = sol.(mesh)
-plt = Plots.plot!(x, U[:, K])
+plt = Plots.plot(x, U[:, K])
 
-if a * τ / h^2 <= 0.5
-    println("Условие Куррента выполнено:", a * τ / h^2, "<= 0.5\n")
+if σ <= 0.5
+    println("Условие Куррента выполнено:", σ, "<= 0.5\n")
     U2 = explicit(x, t, h, τ)
-    U3 = implicit_crank(x, t, h, τ, 1)
 
     srf2 = Plots.surface(x, t, U2')
-    plt2 = Plots.plot(x, U2[:, K])
-    plt3 = Plots.plot!(x, U3[:, K])
+    plt2 = Plots.plot(x, [U[:, K] U2[:, K]], labels=["точное решение" "явная схема"])
 end
+
+U3 = implicit_crank(x, t, h, τ, 1)
+plt3 = Plots.plot(x, [U[:, K] U3[:, K]], labels=["точное решение" "неявная схема"])
+U3_crank = implicit_crank(x, t, h, τ, 0.5)
+plt3_crank = Plots.plot(x, [U[:, K] U3_crank[:, K]], labels=["точное решение" "схема Кранка-Николсона"])
+
 srf = PlotlyJS.plot(PlotlyJS.surface(x=x, y=t, z=U))
 
 # get errors:
 er1, er2 = get_errors(U, U2, U3, N, K)
-println(er1, er2)
+println("ERRORS:")
+println(er1, "\n", er2)
+
+e1 = [max_abs_error(U[:, i], U2[:, i]) for i in 1:length(t)]
+e2 = [max_abs_error(U[:, i], U3[:, i]) for i in 1:length(t)]
+e3 = [max_abs_error(U[:, i], U3_crank[:, i]) for i in 1:length(t)]
+ep = Plots.plot(t, [e1 e2 e3], labels=["явная" "неявная" "Кранка-Николсона"])
+# ep1 = Plots.plot(t, e1)
+# ep2 = Plots.plot(t, e2)
+# ep3 = Plots.plot(t, e3)
