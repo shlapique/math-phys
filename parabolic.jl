@@ -13,7 +13,7 @@ function ϕ0(t)
 end
 
 # u(pi, t)
-function ϕ1(t)
+function ϕl(t)
     return -exp(-0.5 * t)
 end
 
@@ -58,16 +58,16 @@ function explicit(x, t, h, τ)
             U[i, j] = U[i, j-1] + (τ / h^2) * (U[i-1, j-1] - 2*U[i, j-1] + U[i+1, j-1]) + τ*f(x[i], t[j])
         end
         U[1, j] = U[2, j] - h * ϕ0(t[j])
-        U[end, j] = h * ϕ1(t[j]) + U[end-1, j]
+        U[end, j] = h * ϕl(t[j]) + U[end-1, j]
     end
     return U
 end
 
 function implicit_crank(x, t, h, τ, θ)
     if θ == 1
-        println("Running implicit scheme...")
+        @info "Running implicit scheme..."
     else
-        println("Running Crank–Nicolson method...")
+        @info "Running Crank–Nicolson method..."
     end
     U = zeros(length(x), length(t))
     σ = τ / h^2
@@ -92,7 +92,7 @@ function implicit_crank(x, t, h, τ, θ)
         d[1] = ϕ0(t[j])*h
         a[end] = -1
         b[end] = 1
-        d[end] = ϕ1(t[j])*h
+        d[end] = ϕl(t[j])*h
 
         for i in 2:N-1
             a[i] = θ*τ
@@ -112,29 +112,32 @@ function implicit_crank(x, t, h, τ, θ)
 	return U
 end
 
-function get_errors(U, U2, U3, N, K)
+function get_errors(U, U2, U3, U3_crank, N, K)
     err_explicit = 0
-    err_implicit_crank = 0
+    err_implicit = 0
+    err_crank = 0
     for i in 1:N
         for j in 1:K
             err_explicit += (U[i, j] - U2[i, j])^2
-            err_implicit_crank += (U[i, j] - U3[i, j])^2
+            err_implicit += (U[i, j] - U3[i, j])^2
+            err_crank += (U[i, j] - U3_crank[i, j])^2
         end
     end
-    return err_explicit/((N+1)*(K+1)), err_implicit_crank/((N+1)*(K+1))
+    return err_explicit/((N+1)*(K+1)), err_implicit/((N+1)*(K+1)),
+    err_crank/((N+1)*(K+1))
 end
 
 function max_abs_error(A, B)
     return maximum(abs.(A - B))
 end
 
-T = 4
+T = 1
 l = pi
 
 a = 1
 
-N = 50   # segments for x
-K = 5000 # segments for t
+N = 40   # segments for x
+K = 500  # segments for t
 
 θ = 1
 
@@ -179,9 +182,9 @@ plt3_crank = Plots.plot(x, [U[:, K] U3_crank[:, K]], labels=["точное ре�
 srf = PlotlyJS.plot(PlotlyJS.surface(x=x, y=t, z=U))
 
 # get errors:
-er1, er2 = get_errors(U, U2, U3, N, K)
+er1, er2, er3 = get_errors(U, U2, U3, U3_crank, N, K)
 println("ERRORS:")
-println(er1, "\n", er2)
+println(er1, "\n", er2, "\n", er3)
 
 e1 = [max_abs_error(U[:, i], U2[:, i]) for i in 1:length(t)]
 e2 = [max_abs_error(U[:, i], U3[:, i]) for i in 1:length(t)]
