@@ -1,10 +1,16 @@
 # ⦨ calcs for math-phys labs
+These programs numerically solve various types
+of boundary value problems for differential equations 
 
-### run
-```
+### set the env
+```bash
 julia --project=jenv
 ```
-and if you wish type
+
+### run
+```julia
+include("parabolic.jl")
 ```
-using Pluto; Pluto.run()
-```
+
+### 
+![]("img/newplot.png")

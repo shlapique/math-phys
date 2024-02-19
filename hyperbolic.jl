@@ -60,7 +60,6 @@ function explicit(x, t, h, τ)
 
     # 2nd order
     for i in 2:length(x)
-        # U[i, 2] = ψ1(x[i]) + ψ2(x[i])*τ + exp(-x[i])*sin(x[i])*τ^2
         U[i, 2] = (
                    ψ1(x[i]) + ψ2(x[i])*τ 
                     + (2*exp(-x[i])*cos(x[i]) 
@@ -106,7 +105,6 @@ function implicit(x, t, h, τ)
 
     # 2nd order
     for i in 2:N
-        # U[i, 2] = ψ1(x[i]) + ψ2(x[i])*τ + exp(-x[i])*sin(x[i])*τ^2
         U[i, 2] = (
                    ψ1(x[i]) + ψ2(x[i])*τ 
                     + (2*exp(-x[i])*cos(x[i]) 
