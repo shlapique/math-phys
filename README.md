@@ -12,5 +12,5 @@ julia --project=jenv
 include("parabolic.jl")
 ```
 
-###  
+### example image
 ![](https://raw.githubusercontent.com/shlapique/math-phys/master/img/newplot.png)
