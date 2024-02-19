@@ -13,4 +13,4 @@ include("parabolic.jl")
 ```
 
 ### 
-![]("img/newplot.png")
+![]("https://raw.githubusercontent.com/shlapique/math-phys/master/img/newplot.png")
