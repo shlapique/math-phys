@@ -61,22 +61,23 @@ function explicit(x, t, h, τ)
     # 2nd order
     for i in 2:length(x)
         # U[i, 2] = ψ1(x[i]) + ψ2(x[i])*τ + exp(-x[i])*sin(x[i])*τ^2
-        U[i, 2] = ψ1(x[i]) + ψ2(x[i])*τ 
-            + (2*exp(-x[i])*cos(x[i]) 
-            + 2*sin(x[i])/exp(x[i]) 
-            - (cos(x[i]) + sin(x[i]))/exp(x[i]) 
-            - 3*U[i, 1])*τ^2/2
+        U[i, 2] = (
+                   ψ1(x[i]) + ψ2(x[i])*τ 
+                    + (2*exp(-x[i])*cos(x[i]) 
+                    + 2*sin(x[i])/exp(x[i]) 
+                    - (cos(x[i]) + sin(x[i]))/exp(x[i]) 
+                    - 3*U[i, 1])*τ^2/2
+                   )
     end
 
     for j in 3:length(t)
         for i in 2:length(x)-1
-            U[i, j] = 1 / (h^2 * (2*τ + 1)) * 
-            (2*h^2 * (τ + 1) * U[i, j-1] 
+            U[i, j] = (1 / (h^2 * (2*τ + 1)) * (2*h^2 * (τ + 1) * U[i, j-1] 
                 + (-3*U[i, j-1] * h^2 + (U[i+1, j-1] - U[i-1, j-1]) 
                 * h - 2*U[i, j-1] 
                 + U[i+1, j-1] 
                 + U[i-1, j-1])*τ^2 
-                - U[i, j-2]*h^2)
+                - U[i, j-2]*h^2))
         end
         U[1, j] = ϕ0(t[j])
         U[end, j] = ϕl(t[j])
@@ -84,7 +85,7 @@ function explicit(x, t, h, τ)
     return U
 end
 
-function implicit_crank(x, t, h, τ)
+function implicit(x, t, h, τ)
     U = zeros(length(x), length(t))
     σ = τ^2 / h^2
     N = length(x)
@@ -94,6 +95,8 @@ function implicit_crank(x, t, h, τ)
     for i in 1:N
         U[i, 1] = ψ1(x[i])
     end
+    U[1, 2] = ϕ0(t[1])
+    U[end, 2] = ϕl(t[end])
 
     # inital cond [speed]
     # 1st order
@@ -104,18 +107,20 @@ function implicit_crank(x, t, h, τ)
     # 2nd order
     for i in 2:N
         # U[i, 2] = ψ1(x[i]) + ψ2(x[i])*τ + exp(-x[i])*sin(x[i])*τ^2
-        U[i, 2] = ψ1(x[i]) + ψ2(x[i])*τ 
-            + (2*exp(-x[i])*cos(x[i]) 
-            + 2*sin(x[i])/exp(x[i]) 
-            - (cos(x[i]) + sin(x[i]))/exp(x[i]) 
-            - 3*U[i, 1])*τ^2/2
+        U[i, 2] = (
+                   ψ1(x[i]) + ψ2(x[i])*τ 
+                    + (2*exp(-x[i])*cos(x[i]) 
+                    + 2*sin(x[i])/exp(x[i]) 
+                    - (cos(x[i]) + sin(x[i]))/exp(x[i]) 
+                    - 3*U[i, 1])*τ^2/2
+                   )
     end
 
-	for j in 3:K-1
-        a = zeros(N)
-        b = zeros(N)
-        c = zeros(N)
-        d = zeros(N)
+	for j in 3:K
+        a = zeros(N-2)
+        b = zeros(N-2)
+        c = zeros(N-2)
+        d = zeros(N-2)
         
         b[1] = -h^2 * (1 + 2*τ) - τ^2 * (2 + 3*h^2)
         c[1] = τ^2 * (1 + h)
@@ -123,39 +128,30 @@ function implicit_crank(x, t, h, τ)
         a[end] = τ^2 * (1 - h)
         b[end] = -h^2 * (1 + 2*τ) - τ^2 * (2 + 3*h^2)
         d[end] = h^2 * U[N-1, j-2] - (2 + 2*τ) * h^2 * U[N-1, j-1] - τ^2 * (1 + h) * ϕl(t[j])
-        for i in 2:N-1
-            a[i] = τ^2 * (1 - h)
-            b[i] = -h^2 * (1 + 2*τ) - τ^2 * (2 + 3*h^2)
-            c[i] = τ^2 * (1 + h)
-            d[i] = h^2 * U[i, j-2] - (2 + 2*τ) * h^2 * U[i, j-1]
+        for i in 3:N-2
+            a[i-1] = τ^2 * (1 - h)
+            b[i-1] = -h^2 * (1 + 2*τ) - τ^2 * (2 + 3*h^2)
+            c[i-1] = τ^2 * (1 + h)
+            d[i-1] = h^2 * U[i, j-2] - (2 + 2*τ) * h^2 * U[i, j-1]
         end
         res = tma(a, b, c, d)
+        push!(res, ϕl(t[j]))
+        insert!(res, 1, ϕ0(t[j]))
         U[:, j] = res
-        # U[1, j] = ϕ0(t[j])
-        # U[end, j] = ϕl(t[j])
 	end
 	return U
 end
 
-# function get_errors(U, U2, U3, N, K)
-#     err_explicit = 0
-#     err_implicit_crank = 0
-#     for i in 1:N
-#         for j in 1:K
-#             err_explicit += (U[i, j] - U2[i, j])^2
-#             err_implicit_crank += (U[i, j] - U3[i, j])^2
-#         end
-#     end
-#     return err_explicit/((N+1)*(K+1)), err_implicit_crank/((N+1)*(K+1))
-# end
-function get_errors(U, U2, N, K)
+function get_errors(U, U2, U3, N, K)
     err_explicit = 0
+    err_implicit = 0
     for i in 1:N
         for j in 1:K
             err_explicit += (U[i, j] - U2[i, j])^2
+            err_implicit += (U[i, j] - U3[i, j])^2
         end
     end
-    return err_explicit/((N+1)*(K+1))
+    return err_explicit/((N+1)*(K+1)), err_implicit/((N+1)*(K+1))
 end
 
 function max_abs_error(A, B)
@@ -167,8 +163,8 @@ l = pi/2
 
 a = 1
 
-N = 40   # segments for x
-K = 500  # segments for t
+N = 1000   # segments for x
+K = 1000  # segments for t
 
 τ = T / K       # t step
 println("τ=", τ)
@@ -180,17 +176,12 @@ println("h=", h)
 println("σ=", σ)
 
 x = range(0, l, step=h)
-print("x:")
-println(x)
+println("x:", x)
 t = range(0, T, step=τ)
-print("t:")
-println(t)
+println("t:", t)
 
 mesh = collect(Iterators.product(x, t))
 U = sol.(mesh)
-
-er = get_errors(U, U2, N, K)
-println("er=", er)
 
 if σ <= 1
     println("Условие Куррента выполнено:", σ, "<= 1\n")
@@ -198,29 +189,21 @@ if σ <= 1
     srf2 = Plots.surface(x, t, U2', c = :matter)
     plt2 = Plots.plot(x, [U[:, K] U2[:, K]], labels=["точное решение" "явная схема"])
 end
-srf = PlotlyJS.plot([PlotlyJS.surface(x=x, y=t, z=U, colorscale="Jet"), PlotlyJS.surface(x=x, y=t, z=U2)])
+srf2 = PlotlyJS.plot([PlotlyJS.surface(x=x, y=t, z=U2, name="explicit", colorscale="Jet"),
+                      PlotlyJS.surface(x=x, y=t, z=U, name="solution")],
+                     Layout(title="точное решение и явная схема"))
+U3 = implicit(x, t, h, τ)
 
-U3 = implicit_crank(x, t, h, τ)
-# srf3 = Plots.surface(x, t, U3', c = :matter)
-# srf = PlotlyJS.plot([PlotlyJS.surface(x=x, y=t, z=U, colorscale="Blackbody"), PlotlyJS.surface(x=x, y=t, z=U3)])
-srfu = PlotlyJS.plot(PlotlyJS.surface(x=x, y=t, z=U3, colorscale="Blackbody"))
+er1, er2 = get_errors(U, U2, U3, N, K)
 
-# U3 = implicit_crank(x, t, h, τ, 1)
-# plt3 = Plots.plot(x, [U[:, K] U3[:, K]], labels=["точное решение" "неявная схема"])
-# U3_crank = implicit_crank(x, t, h, τ, 0.5)
-# plt3_crank = Plots.plot(x, [U[:, K] U3_crank[:, K]], labels=["точное решение" "схема Кранка-Николсона"])
+srf3 = PlotlyJS.plot([PlotlyJS.surface(x=x, y=t, z=U3, name="implicit", colorscale="Blackbody"),
+                      PlotlyJS.surface(x=x, y=t, z=U, name="solution")],
+                     Layout(title="точное решение и неявная схема"))
 
-# srf = PlotlyJS.plot(PlotlyJS.surface(x=x, y=t, z=U))
+e1 = [max_abs_error(U[:, i], U2[:, i]) for i in 1:length(t)]
+e2 = [max_abs_error(U[:, i], U3[:, i]) for i in 1:length(t)]
+ep = Plots.plot(t, [e1 e2], labels=["явная" "неявная"], title="график погрешности от t")
 
-# # get errors:
-# er1, er2 = get_errors(U, U2, U3, N, K)
-# println("ERRORS:")
-# println(er1, "\n", er2)
-
-# e1 = [max_abs_error(U[:, i], U2[:, i]) for i in 1:length(t)]
-# e2 = [max_abs_error(U[:, i], U3[:, i]) for i in 1:length(t)]
-# e3 = [max_abs_error(U[:, i], U3_crank[:, i]) for i in 1:length(t)]
-# ep = Plots.plot(t, [e1 e2 e3], labels=["явная" "неявная" "Кранка-Николсона"])
-# # ep1 = Plots.plot(t, e1)
-# # ep2 = Plots.plot(t, e2)
-# # ep3 = Plots.plot(t, e3)
+e1_x = [max_abs_error(U[j, :], U2[j, :]) for j in 1:length(x)]
+e2_x = [max_abs_error(U[j, :], U3[j, :]) for j in 1:length(x)]
+ep_x = Plots.plot(x, [e1_x e2_x], labels=["явная" "неявная"], title="график погрешности от x")
