@@ -61,14 +61,22 @@ function explicit(x, t, h, τ)
     # 2nd order
     for i in 2:length(x)
         # U[i, 2] = ψ1(x[i]) + ψ2(x[i])*τ + exp(-x[i])*sin(x[i])*τ^2
-        U[i, 2] = ψ1(x[i]) + ψ2(x[i])*τ + (2*exp(-x[i])*cos(x[i]) + 2*sin(x[i])/exp(x[i]) - (cos(x[i]) + sin(x[i]))/exp(x[i]) - 3*U[i, 1])*τ^2/2
+        U[i, 2] = ψ1(x[i]) + ψ2(x[i])*τ 
+            + (2*exp(-x[i])*cos(x[i]) 
+            + 2*sin(x[i])/exp(x[i]) 
+            - (cos(x[i]) + sin(x[i]))/exp(x[i]) 
+            - 3*U[i, 1])*τ^2/2
     end
 
     for j in 3:length(t)
         for i in 2:length(x)-1
             U[i, j] = 1 / (h^2 * (2*τ + 1)) * 
-            (2*h^2 * (τ + 1) * U[i, j-1] + 
-             (-3*U[i, j-1] * h^2 + (U[i+1, j-1] - U[i-1, j-1]) * h - 2*U[i, j-1] + U[i+1, j-1] + U[i-1, j-1])*τ^2 - U[i, j-2]*h^2)
+            (2*h^2 * (τ + 1) * U[i, j-1] 
+                + (-3*U[i, j-1] * h^2 + (U[i+1, j-1] - U[i-1, j-1]) 
+                * h - 2*U[i, j-1] 
+                + U[i+1, j-1] 
+                + U[i-1, j-1])*τ^2 
+                - U[i, j-2]*h^2)
         end
         U[1, j] = ϕ0(t[j])
         U[end, j] = ϕl(t[j])
@@ -76,51 +84,55 @@ function explicit(x, t, h, τ)
     return U
 end
 
-function implicit_crank(x, t, h, τ, θ)
-    if θ == 1
-        @info "Running implicit scheme..."
-    else
-        @info "Running Crank–Nicolson method..."
-    end
+function implicit_crank(x, t, h, τ)
     U = zeros(length(x), length(t))
-    σ = τ / h^2
+    σ = τ^2 / h^2
     N = length(x)
     K = length(t)
 
     # inital cond
     for i in 1:N
-        U[i, 1] = ψ(x[i])
+        U[i, 1] = ψ1(x[i])
     end
-	for j in 2:K
-        # println("ITER:", j)
-        # display(U)
+
+    # inital cond [speed]
+    # 1st order
+    # for i in 1:N
+    #     U[i, 2] = ψ1(x[i]) + ψ2(x[i])*τ
+    # end
+
+    # 2nd order
+    for i in 2:N
+        # U[i, 2] = ψ1(x[i]) + ψ2(x[i])*τ + exp(-x[i])*sin(x[i])*τ^2
+        U[i, 2] = ψ1(x[i]) + ψ2(x[i])*τ 
+            + (2*exp(-x[i])*cos(x[i]) 
+            + 2*sin(x[i])/exp(x[i]) 
+            - (cos(x[i]) + sin(x[i]))/exp(x[i]) 
+            - 3*U[i, 1])*τ^2/2
+    end
+
+	for j in 3:K-1
         a = zeros(N)
         b = zeros(N)
         c = zeros(N)
         d = zeros(N)
         
-        # 2p approximation with 1st order
-        b[1] = -1
-        c[1] = 1
-        d[1] = ϕ0(t[j])*h
-        a[end] = -1
-        b[end] = 1
-        d[end] = ϕ1(t[j])*h
-
+        b[1] = -h^2 * (1 + 2*τ) - τ^2 * (2 + 3*h^2)
+        c[1] = τ^2 * (1 + h)
+        d[1] = h^2 * U[2, j-2] - (2 + 2*τ) * h^2 * U[2, j-1] - τ^2 * (1 - h) * ϕ0(t[j])
+        a[end] = τ^2 * (1 - h)
+        b[end] = -h^2 * (1 + 2*τ) - τ^2 * (2 + 3*h^2)
+        d[end] = h^2 * U[N-1, j-2] - (2 + 2*τ) * h^2 * U[N-1, j-1] - τ^2 * (1 + h) * ϕl(t[j])
         for i in 2:N-1
-            a[i] = θ*τ
-            b[i] = -2*θ*τ - h^2
-            c[i] = θ*τ
-            d[i] = (
-                    (θ-1)*τ*U[i-1, j-1] 
-                    + (-h^2+2*τ-θ*τ*2)*U[i, j-1] 
-                    + (θ-1)*τ*U[i+1, j-1] 
-                    - θ*τ*h^2*f(x[i], t[j]) 
-                    + (θ-1)*τ*h^2*f(x[i], t[j-1])
-                   )
+            a[i] = τ^2 * (1 - h)
+            b[i] = -h^2 * (1 + 2*τ) - τ^2 * (2 + 3*h^2)
+            c[i] = τ^2 * (1 + h)
+            d[i] = h^2 * U[i, j-2] - (2 + 2*τ) * h^2 * U[i, j-1]
         end
         res = tma(a, b, c, d)
-        U[:, j] = res 
+        U[:, j] = res
+        # U[1, j] = ϕ0(t[j])
+        # U[end, j] = ϕl(t[j])
 	end
 	return U
 end
@@ -187,6 +199,11 @@ if σ <= 1
     plt2 = Plots.plot(x, [U[:, K] U2[:, K]], labels=["точное решение" "явная схема"])
 end
 srf = PlotlyJS.plot([PlotlyJS.surface(x=x, y=t, z=U, colorscale="Jet"), PlotlyJS.surface(x=x, y=t, z=U2)])
+
+U3 = implicit_crank(x, t, h, τ)
+# srf3 = Plots.surface(x, t, U3', c = :matter)
+# srf = PlotlyJS.plot([PlotlyJS.surface(x=x, y=t, z=U, colorscale="Blackbody"), PlotlyJS.surface(x=x, y=t, z=U3)])
+srfu = PlotlyJS.plot(PlotlyJS.surface(x=x, y=t, z=U3, colorscale="Blackbody"))
 
 # U3 = implicit_crank(x, t, h, τ, 1)
 # plt3 = Plots.plot(x, [U[:, K] U3[:, K]], labels=["точное решение" "неявная схема"])

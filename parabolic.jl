@@ -86,7 +86,6 @@ function implicit_crank(x, t, h, τ, θ)
         c = zeros(N)
         d = zeros(N)
         
-        # 2p approximation with 1st order
         b[1] = -1
         c[1] = 1
         d[1] = ϕ0(t[j])*h
@@ -153,6 +152,7 @@ println("σ=", σ)
 x = range(0, l, step=h)
 print("x:")
 println(x)
+@warn size(x)
 t = range(0, T, step=τ)
 print("t:")
 println(t)
