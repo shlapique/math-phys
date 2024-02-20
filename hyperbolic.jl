@@ -152,8 +152,33 @@ function get_errors(U, U2, U3, N, K)
     return err_explicit/((N+1)*(K+1)), err_implicit/((N+1)*(K+1))
 end
 
-function max_abs_error(A, B)
+function nm(A, B)
     return maximum(abs.(A - B))
+end
+
+function step_error(l, T, N, K)
+    # variation of τ
+    err_τ = []
+    taus = []
+    err_h = []
+    h_fixed = (l - 0) / N
+    τ_fixed = T / K
+    for i in 1:10
+        h = h_fixed
+        x = range(0, l, step=h)
+        τ = T / i
+        t = range(0, T, step=τ)
+        mesh = collect(Iterators.product(x, t))
+        U = sol.(mesh)
+        U2 = implicit(x, t, h, τ)
+        U3 = explicit(x, t, h, τ)
+        push!(err_τ, (nm(U, U2), nm(U, U3)))
+        # push!(err_τ, (get_errors(U, U2, U3, N, i)))
+        push!(taus, τ)
+    end
+    # variation of h
+    # for j in 1:10
+    return err_τ, taus
 end
 
 T = 1
@@ -186,7 +211,10 @@ if σ <= 1
     U2 = explicit(x, t, h, τ)
     srf2 = Plots.surface(x, t, U2', c = :matter)
     plt2 = Plots.plot(x, [U[:, K] U2[:, K]], labels=["точное решение" "явная схема"])
+else
+    @warn "НЕ выполнено условие Куранта!"
 end
+
 srf2 = PlotlyJS.plot([PlotlyJS.surface(x=x, y=t, z=U2, name="explicit", colorscale="Jet"),
                       PlotlyJS.surface(x=x, y=t, z=U, name="solution")],
                      Layout(title="точное решение и явная схема"))
@@ -198,10 +226,11 @@ srf3 = PlotlyJS.plot([PlotlyJS.surface(x=x, y=t, z=U3, name="implicit", colorsca
                       PlotlyJS.surface(x=x, y=t, z=U, name="solution")],
                      Layout(title="точное решение и неявная схема"))
 
-e1 = [max_abs_error(U[:, i], U2[:, i]) for i in 1:length(t)]
-e2 = [max_abs_error(U[:, i], U3[:, i]) for i in 1:length(t)]
-ep = Plots.plot(t, [e1 e2], labels=["явная" "неявная"], title="график погрешности от t")
 
-e1_x = [max_abs_error(U[j, :], U2[j, :]) for j in 1:length(x)]
-e2_x = [max_abs_error(U[j, :], U3[j, :]) for j in 1:length(x)]
-ep_x = Plots.plot(x, [e1_x e2_x], labels=["явная" "неявная"], title="график погрешности от x")
+# err_from_τ, taus = step_error(l, T, N, K)
+
+# E = Plots.plot(taus, [getfield.(err_from_τ, 1) getfield.(err_from_τ, 2)], labels=["явная" "неявная"], title="график погрешности от t")
+
+# e1 = [nm(U[:, i], U2[:, i]) for i in 1:length(t)]
+# e2 = [nm(U[:, i], U3[:, i]) for i in 1:length(t)]
+# ep = Plots.plot(t, [e1 e2], labels=["явная" "неявная"], title="график погрешности от t")
