@@ -102,10 +102,10 @@ function mvd(x, y, t, h1, h2, τ, α)
         u2 = zeros(N, M)
 
         for i in 2:N-1
-            a = zeros(N)
-            b = zeros(N)
-            c = zeros(N)
-            d = zeros(N)
+            a = zeros(M)
+            b = zeros(M)
+            c = zeros(M)
+            d = zeros(M)
 
             b[1] = 1
             c[1] = 0
@@ -194,10 +194,10 @@ function fsm(x, y, t, h1, h2, τ, α)
         u2 = zeros(N, M)
 
         for i in 2:N-1
-            a = zeros(N)
-            b = zeros(N)
-            c = zeros(N)
-            d = zeros(N)
+            a = zeros(M)
+            b = zeros(M)
+            c = zeros(M)
+            d = zeros(M)
 
             b[1] = 1
             c[1] = 0
@@ -244,10 +244,65 @@ function get_errors(U, U2, U3, N, M)
     end
     return err_1/((N+1)*(K+1)), err_2/((N+1)*(K+1))
 end
-function max_abs_error(A, B)
+function nm(A, B)
     return maximum(abs.(A - B))
 end
 
+function step_error(lx, rx, ly, ry, T, N, M, K, α)
+    err_τ = []
+    err_h1 = []
+    err_h2 = []
+    h1s = []
+    h2s = []
+    taus = []
+    h1_fixed = (rx - lx) / N
+    h2_fixed = (ry - lx) / M
+    τ_fixed = T / K
+    for i in range(10, 100, step=2)
+        h1 = (rx - lx) / i
+        h2 = h2_fixed
+        τ = τ_fixed
+        x = range(lx, rx, step=h1)
+        y = range(ly, ry, step=h2)
+        t = range(0, T, step=τ)
+        mesh = collect(Iterators.product(x, y, t))
+        U = sol.(mesh)
+        U2 = mvd(x, y, t, h1, h2, τ, α)
+        U3 = fsm(x, y, t, h1, h2, τ, α)
+        push!(err_h1, (nm(U, U2), nm(U, U3)))
+        push!(h1s, h1)
+    end
+    for i in range(10, 100, step=2)
+        h1 = h1_fixed
+        h2 = (rx - lx) / i
+        τ = τ_fixed
+        x = range(lx, rx, step=h1)
+        y = range(ly, ry, step=h2)
+        t = range(0, T, step=τ)
+        mesh = collect(Iterators.product(x, y, t))
+        U = sol.(mesh)
+        U2 = mvd(x, y, t, h1, h2, τ, α)
+        U3 = fsm(x, y, t, h1, h2, τ, α)
+        push!(err_h2, (nm(U, U2), nm(U, U3)))
+        push!(h2s, h2)
+    end
+    # variation of τ
+    for i in range(10, 50, step=2)
+        h1 = h1_fixed
+        h2 = h2_fixed
+        τ = T / i
+        x = range(lx, rx, step=h1)
+        y = range(ly, ry, step=h2)
+        t = range(0, T, step=τ)
+        mesh = collect(Iterators.product(x, y, t))
+        U = sol.(mesh)
+        U2 = mvd(x, y, t, h1, h2, τ, α)
+        U3 = fsm(x, y, t, h1, h2, τ, α)
+        push!(err_τ, (nm(U, U2), nm(U, U3)))
+        push!(taus, τ)
+    end
+    return err_h1, h1s, err_h2, h2s, err_τ, taus
+end
 
 N = 20
 lx = 0
@@ -286,18 +341,24 @@ U = sol.(mesh)
 U2 = mvd(x, y, t, h1, h2, τ, α)
 U3 = fsm(x, y, t, h1, h2, τ, α)
 
+err_from_h1, h1s, err_from_h2, h2s, err_from_τ, taus = step_error(lx, rx, ly, ry, T, N, M, K, α)
+
+E = Plots.plot(h1s, [getfield.(err_from_h1, 1) getfield.(err_from_h1, 2)], labels=["mvd" "fsm"], title="график погрешности от h1")
+E2 = Plots.plot(h2s, [getfield.(err_from_h2, 1) getfield.(err_from_h2, 2)], labels=["mvd" "fsm"], title="график погрешности от h2")
+E3 = Plots.plot(taus, [getfield.(err_from_τ, 1) getfield.(err_from_τ, 2)], labels=["mvd" "fsm"], title="график погрешности от t")
+
 # plt = Plots.plot(y, [U[x_test_index, :, t_test_index] U2[x_test_index, :, t_test_index] U3[x_test_index, :, t_test_index]], 
 # plt = Plots.plot(y, [U[x_test_index, :, t_test_index] U2[x_test_index, :, t_test_index] U3[x_test_index, :, t_test_index]], 
 #                  labels=["точное решение" "mvd" "fsm"], 
 #                  linestyle=[:solid :dash :dot], lw=3)
 
-er1, er2 = get_errors(U[:, :, t_test_index], U2[:, :, t_test_index], U3[:, :, t_test_index], N, M)
+# er1, er2 = get_errors(U[:, :, t_test_index], U2[:, :, t_test_index], U3[:, :, t_test_index], N, M)
 
 
-e1 = [max_abs_error(U[:, i], U2[:, i]) for i in 1:length(t)]
-e2 = [max_abs_error(U[:, i], U3[:, i]) for i in 1:length(t)]
-ep = Plots.plot(t, [e1 e2], labels=["явная" "неявная"], title="график погрешности от t")
+# e1 = [nm(U[:, i], U2[:, i]) for i in 1:length(t)]
+# e2 = [nm(U[:, i], U3[:, i]) for i in 1:length(t)]
+# ep = Plots.plot(t, [e1 e2], labels=["явная" "неявная"], title="график погрешности от t")
 
-e1_x = [max_abs_error(U[j, :], U2[j, :]) for j in 1:length(x)]
-e2_x = [max_abs_error(U[j, :], U3[j, :]) for j in 1:length(x)]
-ep_x = Plots.plot(x, [e1_x e2_x], labels=["явная" "неявная"], title="график погрешности от x")
+# e1_x = [nm(U[j, :], U2[j, :]) for j in 1:length(x)]
+# e2_x = [nm(U[j, :], U3[j, :]) for j in 1:length(x)]
+# ep_x = Plots.plot(x, [e1_x e2_x], labels=["явная" "неявная"], title="график погрешности от x")

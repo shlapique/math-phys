@@ -160,25 +160,36 @@ function step_error(l, T, N, K)
     # variation of τ
     err_τ = []
     taus = []
+    hs = []
     err_h = []
     h_fixed = (l - 0) / N
     τ_fixed = T / K
-    for i in 1:10
+    for i in range(100, 800, step=10)
         h = h_fixed
         x = range(0, l, step=h)
         τ = T / i
         t = range(0, T, step=τ)
         mesh = collect(Iterators.product(x, t))
         U = sol.(mesh)
-        U2 = implicit(x, t, h, τ)
-        U3 = explicit(x, t, h, τ)
+        U2 = explicit(x, t, h, τ)
+        U3 = implicit(x, t, h, τ)
         push!(err_τ, (nm(U, U2), nm(U, U3)))
-        # push!(err_τ, (get_errors(U, U2, U3, N, i)))
         push!(taus, τ)
     end
     # variation of h
-    # for j in 1:10
-    return err_τ, taus
+    for i in range(100, 800, step=10)
+        h =  (l - 0) / i 
+        x = range(0, l, step=h)
+        τ = τ_fixed
+        t = range(0, T, step=τ)
+        mesh = collect(Iterators.product(x, t))
+        U = sol.(mesh)
+        U2 = explicit(x, t, h, τ)
+        U3 = implicit(x, t, h, τ)
+        push!(err_h, (nm(U, U2), nm(U, U3)))
+        push!(hs, h)
+    end
+    return err_τ, taus, err_h, hs
 end
 
 T = 1
@@ -227,9 +238,10 @@ srf3 = PlotlyJS.plot([PlotlyJS.surface(x=x, y=t, z=U3, name="implicit", colorsca
                      Layout(title="точное решение и неявная схема"))
 
 
-# err_from_τ, taus = step_error(l, T, N, K)
+err_from_τ, taus, err_from_h, hs = step_error(l, T, N, K)
 
-# E = Plots.plot(taus, [getfield.(err_from_τ, 1) getfield.(err_from_τ, 2)], labels=["явная" "неявная"], title="график погрешности от t")
+E = Plots.plot(taus, [getfield.(err_from_τ, 1) getfield.(err_from_τ, 2)], labels=["явная" "неявная"], title="график погрешности от t")
+E2 = Plots.plot(hs, [getfield.(err_from_h, 1) getfield.(err_from_h, 2)], labels=["явная" "неявная"], title="график погрешности от x")
 
 # e1 = [nm(U[:, i], U2[:, i]) for i in 1:length(t)]
 # e2 = [nm(U[:, i], U3[:, i]) for i in 1:length(t)]
