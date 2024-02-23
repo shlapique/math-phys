@@ -256,12 +256,12 @@ function step_error(lx, rx, ly, ry, T, N, M, K, α)
     h2s = []
     taus = []
     h1_fixed = (rx - lx) / N
-    h2_fixed = (ry - lx) / M
+    h2_fixed = (ry - ly) / M
     τ_fixed = T / K
     for i in range(10, 100, step=2)
         h1 = (rx - lx) / i
         h2 = h2_fixed
-        τ = τ_fixed
+        τ = T / i
         x = range(lx, rx, step=h1)
         y = range(ly, ry, step=h2)
         t = range(0, T, step=τ)
@@ -275,7 +275,7 @@ function step_error(lx, rx, ly, ry, T, N, M, K, α)
     for i in range(10, 100, step=2)
         h1 = h1_fixed
         h2 = (rx - lx) / i
-        τ = τ_fixed
+        τ = T / i
         x = range(lx, rx, step=h1)
         y = range(ly, ry, step=h2)
         t = range(0, T, step=τ)
@@ -313,7 +313,7 @@ ly = 0
 ry = 1
 
 h1 = (rx - lx) / N # x step
-h2 = (rx - lx) / M # y step
+h2 = (ry - ly) / M # y step
 
 K = 50
 T = 1
@@ -345,7 +345,7 @@ err_from_h1, h1s, err_from_h2, h2s, err_from_τ, taus = step_error(lx, rx, ly, r
 
 E = Plots.plot(h1s, [getfield.(err_from_h1, 1) getfield.(err_from_h1, 2)], labels=["mvd" "fsm"], title="график погрешности от h1")
 E2 = Plots.plot(h2s, [getfield.(err_from_h2, 1) getfield.(err_from_h2, 2)], labels=["mvd" "fsm"], title="график погрешности от h2")
-E3 = Plots.plot(taus, [getfield.(err_from_τ, 1) getfield.(err_from_τ, 2)], labels=["mvd" "fsm"], title="график погрешности от t")
+# E3 = Plots.plot(taus, [getfield.(err_from_τ, 1) getfield.(err_from_τ, 2)], labels=["mvd" "fsm"], title="график погрешности от t")
 
 # plt = Plots.plot(y, [U[x_test_index, :, t_test_index] U2[x_test_index, :, t_test_index] U3[x_test_index, :, t_test_index]], 
 # plt = Plots.plot(y, [U[x_test_index, :, t_test_index] U2[x_test_index, :, t_test_index] U3[x_test_index, :, t_test_index]], 

@@ -6,6 +6,9 @@ of boundary value problems for differential equations
 ```bash
 julia --project=jenv
 ```
+```julia
+]include("parabolic.jl")
+```
 
 ### run
 ```julia

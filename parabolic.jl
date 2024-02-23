@@ -55,7 +55,8 @@ function explicit(x, t, h, τ)
 
     for j in 2:length(t)
         for i in 2:length(x)-1
-            U[i, j] = U[i, j-1] + (τ / h^2) * (U[i-1, j-1] - 2*U[i, j-1] + U[i+1, j-1]) + τ*f(x[i], t[j])
+            U[i, j] = (U[i, j-1] + (τ / h^2) * (U[i-1, j-1] - 2*U[i, j-1] +
+                                                U[i+1, j-1]) + τ*f(x[i], t[j]))
         end
         U[1, j] = U[2, j] - h * ϕ0(t[j])
         U[end, j] = h * ϕl(t[j]) + U[end-1, j]
@@ -70,7 +71,6 @@ function implicit_crank(x, t, h, τ, θ)
         @info "Running Crank–Nicolson method..."
     end
     U = zeros(length(x), length(t))
-    σ = τ / h^2
     N = length(x)
     K = length(t)
 
@@ -79,8 +79,6 @@ function implicit_crank(x, t, h, τ, θ)
         U[i, 1] = ψ(x[i])
     end
 	for j in 2:K
-        # println("ITER:", j)
-        # display(U)
         a = zeros(N)
         b = zeros(N)
         c = zeros(N)
@@ -126,8 +124,29 @@ function get_errors(U, U2, U3, U3_crank, N, K)
     err_crank/((N+1)*(K+1))
 end
 
-function max_abs_error(A, B)
+function nm(A, B)
     return maximum(abs.(A - B))
+end
+
+function step_error(l, T, N, K, σ)
+    hs = []
+    err_h = []
+    # variation of h
+    τ_fixed = T / K
+    for i in range(10, 40, step=2)
+        h =  (l - 0) / i 
+        x = range(0, l, step=h)
+        τ = τ_fixed
+        t = range(0, T, step=τ)
+        mesh = collect(Iterators.product(x, t))
+        U = sol.(mesh)
+        U2 = explicit(x, t, h, τ)
+        U3 = implicit_crank(x, t, h, τ, 1)
+        U3_crank = implicit_crank(x, t, h, τ, 0.5)
+        push!(err_h, (nm(U, U2), nm(U, U3), nm(U, U3_crank)))
+        push!(hs, h)
+    end
+    return err_h, hs
 end
 
 T = 1
@@ -170,14 +189,21 @@ if σ <= 0.5
     println("Условие Куррента выполнено:", σ, "<= 0.5\n")
     U2 = explicit(x, t, h, τ)
 
-    srf2 = Plots.surface(x, t, U2')
+    srf2 = Plots.surface(x, t, U2', xlabel="x", ylabel="time")
+    # Plots.savefig(srf2, "srf2.png")
     plt2 = Plots.plot(x, [U[:, K] U2[:, K]], labels=["точное решение" "явная схема"])
 end
 
 U3 = implicit_crank(x, t, h, τ, 1)
+srf3 = Plots.surface(x, t, U3', xlabel="x", ylabel="time", c=:buda)
 plt3 = Plots.plot(x, [U[:, K] U3[:, K]], labels=["точное решение" "неявная схема"])
+# Plots.savefig(srf3, "srf3.png")
+
 U3_crank = implicit_crank(x, t, h, τ, 0.5)
-plt3_crank = Plots.plot(x, [U[:, K] U3_crank[:, K]], labels=["точное решение" "схема Кранка-Николсона"])
+srf_crank = Plots.surface(x, t, U3_crank', xlabel="x", ylabel="time", c=:jet)
+# Plots.savefig(srf_crank, "srf_crank.png")
+plt3_crank = Plots.plot(x, [U[:, K] U3_crank[:, K]], 
+                        labels=["точное решение" "схема Кранка-Николсона"])
 
 srf = PlotlyJS.plot(PlotlyJS.surface(x=x, y=t, z=U))
 
@@ -186,10 +212,14 @@ er1, er2, er3 = get_errors(U, U2, U3, U3_crank, N, K)
 println("ERRORS:")
 println(er1, "\n", er2, "\n", er3)
 
-e1 = [max_abs_error(U[:, i], U2[:, i]) for i in 1:length(t)]
-e2 = [max_abs_error(U[:, i], U3[:, i]) for i in 1:length(t)]
-e3 = [max_abs_error(U[:, i], U3_crank[:, i]) for i in 1:length(t)]
-ep = Plots.plot(t, [e1 e2 e3], labels=["явная" "неявная" "Кранка-Николсона"])
-# ep1 = Plots.plot(t, e1)
-# ep2 = Plots.plot(t, e2)
-# ep3 = Plots.plot(t, e3)
+err_from_h, hs = step_error(l, T, N, K, σ)
+
+E1 = Plots.plot(hs, [getfield.(err_from_h, 1)], 
+               labels=["явная"], title="график погрешности от шага h")
+E2 = Plots.plot(hs, [getfield.(err_from_h, 2)], 
+               labels=["неявная"], title="график погрешности от шага h")
+E3 = Plots.plot(hs, [getfield.(err_from_h, 3)], 
+               labels=["Crank-Nicolson"], title="график погрешности от шага h")
+# Plots.savefig(E1, "err_explicit.png")
+# Plots.savefig(E2, "err_implicit.png")
+# Plots.savefig(E3, "err_crank.png")

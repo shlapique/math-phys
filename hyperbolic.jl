@@ -122,10 +122,12 @@ function implicit(x, t, h, τ)
         
         b[1] = -h^2 * (1 + 2*τ) - τ^2 * (2 + 3*h^2)
         c[1] = τ^2 * (1 + h)
-        d[1] = h^2 * U[2, j-2] - (2 + 2*τ) * h^2 * U[2, j-1] - τ^2 * (1 - h) * ϕ0(t[j])
+        d[1] = (h^2 * U[2, j-2] - (2 + 2*τ) * 
+                h^2 * U[2, j-1] - τ^2 * (1 - h) * ϕ0(t[j]))
         a[end] = τ^2 * (1 - h)
         b[end] = -h^2 * (1 + 2*τ) - τ^2 * (2 + 3*h^2)
-        d[end] = h^2 * U[N-1, j-2] - (2 + 2*τ) * h^2 * U[N-1, j-1] - τ^2 * (1 + h) * ϕl(t[j])
+        d[end] = (h^2 * U[N-1, j-2] - (2 + 2*τ) * h^2 * U[N-1, j-1] 
+                  - τ^2 * (1 + h) * ϕl(t[j]))
         for i in 3:N-2
             a[i-1] = τ^2 * (1 - h)
             b[i-1] = -h^2 * (1 + 2*τ) - τ^2 * (2 + 3*h^2)
@@ -153,43 +155,33 @@ function get_errors(U, U2, U3, N, K)
 end
 
 function nm(A, B)
+    if size(A) != size(B)
+        @error "sizes mismatch!"
+    end
     return maximum(abs.(A - B))
 end
 
-function step_error(l, T, N, K)
-    # variation of τ
-    err_τ = []
-    taus = []
+function step_error(l, T, N, K, σ)
     hs = []
     err_h = []
-    h_fixed = (l - 0) / N
-    τ_fixed = T / K
-    for i in range(100, 800, step=10)
-        h = h_fixed
-        x = range(0, l, step=h)
-        τ = T / i
-        t = range(0, T, step=τ)
-        mesh = collect(Iterators.product(x, t))
-        U = sol.(mesh)
-        U2 = explicit(x, t, h, τ)
-        U3 = implicit(x, t, h, τ)
-        push!(err_τ, (nm(U, U2), nm(U, U3)))
-        push!(taus, τ)
-    end
     # variation of h
     for i in range(100, 800, step=10)
         h =  (l - 0) / i 
         x = range(0, l, step=h)
-        τ = τ_fixed
+        τ = sqrt(σ^2 * h^2)
+        τ_i = T / i
         t = range(0, T, step=τ)
+        t_i = range(0, T, step=τ_i)
         mesh = collect(Iterators.product(x, t))
         U = sol.(mesh)
+        mesh_i = collect(Iterators.product(x, t_i))
+        U_i = sol.(mesh_i)
         U2 = explicit(x, t, h, τ)
-        U3 = implicit(x, t, h, τ)
-        push!(err_h, (nm(U, U2), nm(U, U3)))
+        U3 = implicit(x, t_i, h, τ_i)
+        push!(err_h, (nm(U, U2), nm(U_i, U3)))
         push!(hs, h)
     end
-    return err_τ, taus, err_h, hs
+    return err_h, hs
 end
 
 T = 1
@@ -218,9 +210,10 @@ mesh = collect(Iterators.product(x, t))
 U = sol.(mesh)
 
 if σ <= 1
-    println("Условие Куррента выполнено:", σ, "<= 1\n")
+    println("Условие Куранта выполнено:", σ, "<= 1\n")
     U2 = explicit(x, t, h, τ)
-    srf2 = Plots.surface(x, t, U2', c = :matter)
+    srf2 = Plots.surface(x, t, U2')
+    # Plots.savefig(srf2, "srf2.png")
     plt2 = Plots.plot(x, [U[:, K] U2[:, K]], labels=["точное решение" "явная схема"])
 else
     @warn "НЕ выполнено условие Куранта!"
@@ -233,16 +226,15 @@ U3 = implicit(x, t, h, τ)
 
 er1, er2 = get_errors(U, U2, U3, N, K)
 
-srf3 = PlotlyJS.plot([PlotlyJS.surface(x=x, y=t, z=U3, name="implicit", colorscale="Blackbody"),
-                      PlotlyJS.surface(x=x, y=t, z=U, name="solution")],
-                     Layout(title="точное решение и неявная схема"))
+srf3 = Plots.surface(x, t, U3', xlabel="x", ylabel="time", c=:jet)
+# Plots.savefig(srf3, "srf3.png")
 
+err_from_h, hs = step_error(l, T, N, K, σ)
 
-err_from_τ, taus, err_from_h, hs = step_error(l, T, N, K)
+E1 = Plots.plot(hs, [getfield.(err_from_h, 1)], labels=["явная"], 
+                title="график погрешности от шага h")
+E2 = Plots.plot(hs, [getfield.(err_from_h, 2)], labels=["неявная"],
+                title="график погрешности от шага h")
 
-E = Plots.plot(taus, [getfield.(err_from_τ, 1) getfield.(err_from_τ, 2)], labels=["явная" "неявная"], title="график погрешности от t")
-E2 = Plots.plot(hs, [getfield.(err_from_h, 1) getfield.(err_from_h, 2)], labels=["явная" "неявная"], title="график погрешности от x")
-
-# e1 = [nm(U[:, i], U2[:, i]) for i in 1:length(t)]
-# e2 = [nm(U[:, i], U3[:, i]) for i in 1:length(t)]
-# ep = Plots.plot(t, [e1 e2], labels=["явная" "неявная"], title="график погрешности от t")
+# Plots.savefig(E1, "err_explicit.png")
+# Plots.savefig(E2, "err_implicit.png")
