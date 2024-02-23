@@ -7,7 +7,7 @@ of boundary value problems for differential equations
 julia --project=jenv
 ```
 ```julia
-]include("parabolic.jl")
+]instantiate
 ```
 
 ### run
