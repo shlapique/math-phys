@@ -168,7 +168,7 @@ function step_error(l, T, N, K, σ)
     for i in range(100, 800, step=10)
         h =  (l - 0) / i 
         x = range(0, l, step=h)
-        τ = sqrt(σ^2 * h^2)
+        τ = sqrt(h^2)
         τ_i = T / i
         t = range(0, T, step=τ)
         t_i = range(0, T, step=τ_i)

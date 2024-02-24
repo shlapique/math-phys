@@ -86,7 +86,8 @@ function mvd(x, y, t, h1, h2, τ, α)
                 a[i] = α 
                 b[i] = -2 * (h1^2) / τ - 2 * α
                 c[i] = α 
-                d[i] = (-(h1^2) * (uk_1[i, j+1] - 2 * uk_1[i, j] + uk_1[i, j-1]) / (h2^2) -
+                d[i] = (-(h1^2) * (uk_1[i, j+1] 
+                        - 2 * uk_1[i, j] + uk_1[i, j-1]) / (h2^2) -
                         2 * (h1^2) * uk_1[i, j] / τ - (h1^2) * f(x[i], y[j], t_half))
             end
 
@@ -258,10 +259,11 @@ function step_error(lx, rx, ly, ry, T, N, M, K, α)
     h1_fixed = (rx - lx) / N
     h2_fixed = (ry - ly) / M
     τ_fixed = T / K
-    for i in range(10, 100, step=2)
+    for i in range(10, 70, step=10)
         h1 = (rx - lx) / i
         h2 = h2_fixed
-        τ = T / i
+        τ = 10*0.25*(h1^2 + h2^2)
+        # τ = T / (i-1)*2
         x = range(lx, rx, step=h1)
         y = range(ly, ry, step=h2)
         t = range(0, T, step=τ)
@@ -272,10 +274,10 @@ function step_error(lx, rx, ly, ry, T, N, M, K, α)
         push!(err_h1, (nm(U, U2), nm(U, U3)))
         push!(h1s, h1)
     end
-    for i in range(10, 100, step=2)
+    for i in range(10, 70, step=10)
         h1 = h1_fixed
-        h2 = (rx - lx) / i
-        τ = T / i
+        h2 = (ry - ly) / i
+        τ = 10*0.25*(h1^2 + h2^2)
         x = range(lx, rx, step=h1)
         y = range(ly, ry, step=h2)
         t = range(0, T, step=τ)
@@ -322,7 +324,7 @@ T = 1
 α = 1
 
 t_test_index = 10
-# x_test_index = 10
+x_test_index = 10
 # y_test_index = 10
 
 
@@ -343,22 +345,25 @@ U3 = fsm(x, y, t, h1, h2, τ, α)
 
 err_from_h1, h1s, err_from_h2, h2s, err_from_τ, taus = step_error(lx, rx, ly, ry, T, N, M, K, α)
 
-E = Plots.plot(h1s, [getfield.(err_from_h1, 1) getfield.(err_from_h1, 2)], labels=["mvd" "fsm"], title="график погрешности от h1")
-E2 = Plots.plot(h2s, [getfield.(err_from_h2, 1) getfield.(err_from_h2, 2)], labels=["mvd" "fsm"], title="график погрешности от h2")
-# E3 = Plots.plot(taus, [getfield.(err_from_τ, 1) getfield.(err_from_τ, 2)], labels=["mvd" "fsm"], title="график погрешности от t")
+E1 = Plots.plot(h1s, [getfield.(err_from_h1, 1)],
+               labels=["mvd"], title="график погрешности от h1")
 
-# plt = Plots.plot(y, [U[x_test_index, :, t_test_index] U2[x_test_index, :, t_test_index] U3[x_test_index, :, t_test_index]], 
-# plt = Plots.plot(y, [U[x_test_index, :, t_test_index] U2[x_test_index, :, t_test_index] U3[x_test_index, :, t_test_index]], 
-#                  labels=["точное решение" "mvd" "fsm"], 
-#                  linestyle=[:solid :dash :dot], lw=3)
+E2 = Plots.plot(h2s, [getfield.(err_from_h2, 1)],
+                labels=["mvd"], title="график погрешности от h2")
 
-# er1, er2 = get_errors(U[:, :, t_test_index], U2[:, :, t_test_index], U3[:, :, t_test_index], N, M)
+E3 = Plots.plot(h1s, [getfield.(err_from_h1, 2)],
+                labels=["fsm"], title="график погрешности от h1")
 
+E4 = Plots.plot(h2s, [getfield.(err_from_h2, 2)],
+                labels=["fsm"], title="график погрешности от h2")
 
-# e1 = [nm(U[:, i], U2[:, i]) for i in 1:length(t)]
-# e2 = [nm(U[:, i], U3[:, i]) for i in 1:length(t)]
-# ep = Plots.plot(t, [e1 e2], labels=["явная" "неявная"], title="график погрешности от t")
+# Plots.savefig(E1, "err_mvd_1.png")
+# Plots.savefig(E2, "err_mvd_2.png")
+# Plots.savefig(E3, "err_fsm_1.png")
+# Plots.savefig(E4, "err_fsm_2.png")
 
-# e1_x = [nm(U[j, :], U2[j, :]) for j in 1:length(x)]
-# e2_x = [nm(U[j, :], U3[j, :]) for j in 1:length(x)]
-# ep_x = Plots.plot(x, [e1_x e2_x], labels=["явная" "неявная"], title="график погрешности от x")
+# anim = @animate for i in 1:51
+#     Plots.surface(U[:, :, i], c=:plasma, title="Time step : $i", xlabel="X", ylabel="Y")
+# end
+
+# gif(anim, "gf.gif", fps = 5)

@@ -165,7 +165,7 @@ x = range(0, lx, step=hx)
 y = range(0, ly, step=hy)
 
 ε = 1e-10
-ω = 1.2
+ω = 1.8
 
 mesh = collect(Iterators.product(x, y))
 U = sol.(mesh)
