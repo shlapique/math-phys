@@ -136,7 +136,7 @@ function step_error(lx, ly, N, M, ω, ε)
     hs = []
     err_h = []
     # variation of h
-    for i in range(10, 50, step=1)
+    for i in range(10, 50, step=10)
         hx = lx / (i-1)*2
         hy = ly / (i-1)*2
         x = range(0, lx, step=hx)
@@ -165,7 +165,7 @@ x = range(0, lx, step=hx)
 y = range(0, ly, step=hy)
 
 ε = 1e-10
-ω = 1.8
+ω = 1.2
 
 mesh = collect(Iterators.product(x, y))
 U = sol.(mesh)
@@ -186,10 +186,10 @@ er1, er2 = get_errors(U, U2, U3, N, M)
 
 err_from_h, hs = step_error(lx, ly, N, M, ω, ε)
 
-E1 = Plots.plot(hs, [getfield.(err_from_h, 1)], labels=["lieberman"], 
+E1 = Plots.plot(hs, [getfield.(err_from_h, 1)], labels=["liebman"], 
                 title="график погрешности от шага")
 E2 = Plots.plot(hs, [getfield.(err_from_h, 2)], labels=["relax"],
                 title="график погрешности от шага")
 
-# Plots.savefig(E1, "err_lieberman.png")
+# Plots.savefig(E1, "err_liebman.png")
 # Plots.savefig(E2, "err_relax.png")
